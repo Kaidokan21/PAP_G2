@@ -1,167 +1,131 @@
-// incluir as bibliotecas necessárias
-#include <LiquidCrystal_I2C.h> // controlar o LCD do Arduino
-#include <SPI.h> // controlar dispositivos "Serial Peripheral Interface"
-#include <MFRC522.h> // ler/escrever uma senha para um cartão RFID
-#include <Wire.h> // permite a comunicação entre dispositivos I2C/TWI
+#include <LiquidCrystal_I2C.h> //controlar o LCD do Arduino
+#include <SPI.h> //controlar dispositivos "Serial Peripheral Interface" 
+#include <MFRC522.h> //ler/escrever uma senha para um cartão RFID
+#include <Wire.h> //permite a comunicação entre dispositivos I2C/TWI 
+LiquidCrystal_I2C lcd(0x27, 16, 2); //o tamanho do LCD
 
-// criar uma instância do LCD com o endereço 0x27, com 16 colunas e 2 linhas
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+unsigned long startMillis;   //os milisegundos quando o programa iniciou
+unsigned long currentMillis; //quantos milisegundos se passaram depois do programa ter iniciado
+const unsigned long period = 604800000; //periodo usado para definir quando reiniciar o programa
 
-// iniciar as variáveis de tempo de execução do programa
-unsigned long startMillis = millis(); // os milisegundos quando o programa iniciou
-unsigned long currentMillis; // quantos milisegundos se passaram depois do programa ter iniciado
-const unsigned long period = 604800000; // período usado para definir quando reiniciar o programa
-unsigned long toneDuration = 500; // duração do som emitido pelo buzzer
-
-// definir os pinos usados pelo MFRC522
 #define SS_PIN 10
-#define RST_PIN 9
-
-// definir os pinos do relay e do buzzer
-#define RELAY 3
-#define BUZZER 2
-
-// criar uma instância do MFRC522
-MFRC522 mfrc522(SS_PIN, RST_PIN);
-
-void setup() {
-// iniciar a comunicação serial
-Serial.begin(9600);
-// iniciar o SPI
-SPI.begin();
-// iniciar o MFRC522
-mfrc522.PCD_Init();
-
-// definir os pinos do relay e do buzzer como saída
-pinMode(RELAY, OUTPUT);
-pinMode(BUZZER, OUTPUT);
-
-// desativar o som emitido pelo buzzer
-noTone(BUZZER);
-
-// inicializar o LCD e ligar a luz
-lcd.init();
-lcd.clear();
-lcd.backlight();
-
-// emitir um som pelo buzzer
-tone(BUZZER, 1000);
-noTone(BUZZER);
-
-// escrever no LCD
-lcd.print("ARDUINO SECURITY");
-lcd.setCursor(0, 1);
-lcd.print(" DOOR ");
-
-// limpar o LCD e escrever novo texto
-lcd.clear();
-lcd.print(" ACTIVATING ");
-lcd.setCursor(0, 1);
-lcd.print(" SYSTEM ");
-
-// mudar o estado do Relay de low para high e de volta para low
-digitalWrite(RELAY, HIGH);
-digitalWrite(RELAY, LOW);
-
-// escrever no LCD
-lcd.print(" PLEASE BE ");
-lcd.setCursor(0, 1);
-lcd.print(" PATIENT ");
-
-// mudar o estado do Relay para low e emitir um som pelo buzzer
-digitalWrite(RELAY, LOW);
-tone(BUZZER, 1000);
-noTone(BUZZER);
-
-// limpar o LCD e escrever novo texto
-lcd.clear();
-lcd.print(" SCAN CARD ");
-lcd.setCursor(0, 1);
-lcd.print(" TO UNLOCK ");
-
+#define RST_PIN 9 
+#define RELAY 3 //definir o pino do relay
+#define   BUZZER 2 //definir o pino do buzzer
+MFRC522 mfrc522(SS_PIN, RST_PIN);   // Create MFRC522 instance.
+void   setup() {
+  Serial.begin(9600);   // Initiate a serial communication
+  SPI.begin();
+   mfrc522.PCD_Init();
+  pinMode(RELAY, OUTPUT); //definir o pino de relay como output
+  pinMode(BUZZER, OUTPUT); //um "buzzer" para fazer um som
+   noTone(BUZZER); 
+  lcd.init(); //ligar o LCD
+  lcd.clear(); //limpar o LCD
+  lcd.backlight(); //ligar a luz do LCD
+  tone(BUZZER,   1000); //indicar ao buzzer para fazer um som
+  //delay(100);
+  noTone(BUZZER);
+  lcd.print(F("ARDUINO SECURITY")); //escrever no LCD 
+   lcd.setCursor(0, 1); //meter o cursor na segunda linha, na coluna 0
+  lcd.print(F("      DOOR  "));
+  //delay(2000);
+   lcd.clear();
+  lcd.print(F("   ACTIVATING    "));
+  lcd.setCursor(0, 1);
+   lcd.print(F("     SYSTEM    "));
+  //delay(2000);
+  lcd.clear();
+  digitalWrite(RELAY,   HIGH); //mudar o estado do Relay de low para high
+  //delay(2);
+  digitalWrite(RELAY, LOW);
+  lcd.print("   PLEASE   BE ");
+  lcd.setCursor(0, 1);
+  lcd.print("    PATIENT  ");
+  //delay(2000);
+   digitalWrite(RELAY, LOW);
+  tone(BUZZER, 1000);
+  //delay(1000);
+  noTone(BUZZER);
+   lcd.clear();
+  lcd.print("   SCAN CARD ");
+  lcd.setCursor(0, 1);
+   lcd.print("   TO UNLOCK  ");
 }
 
-// criar um ponteiro para a função de reset
-void(*resetFunc) (void) = 0;
+void(*resetFunc) (void) = 0; //reiniciar o programa
 
-void loop() {
-// atualizar o tempo de execução do programa
-currentMillis = millis();
+void   loop() {
+  currentMillis = millis();  //get the current "time" (actually the   number of milliseconds since the program started)
+  if (currentMillis - startMillis   >= period)  //test whether the period has elapsed
+  {
+    resetFunc(); //call   reset
+  }
+  if ( ! mfrc522.PICC_IsNewCardPresent())      return;   // Look   for new cards
+  if ( ! mfrc522.PICC_ReadCardSerial())    return;  // Select one   of the cards
+  Serial.print(F("UID tag :"));
+  String content = "";
+   byte letter;
+  for (byte i = 0; i < mfrc522.uid.size; i++)
+  {
+    Serial.print(mfrc522.uid.uidByte[i]   < 0x10 ? " 0" : " ");
+    Serial.print(mfrc522.uid.uidByte[i], HEX);
+     content.concat(String(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " "));
+     content.concat(String(mfrc522.uid.uidByte[i], HEX));
+  }
+  Serial.println();
+   content.toUpperCase();
+  if ((content.substring(1) == "93 6D BE 0D")
+       || (content.substring(1) == "51 67 DC B0")
+      || (content.substring(1)   == "A3 23 74 11") //change here the UID of the card/cards that you want to give   access to
+      || (content.substring(1) == "55 42 2B 0D"))
+  {
+    lcd.clear();
+     lcd.backlight();
+    lcd.print("     ACCESS     ");
+    lcd.setCursor(0,   1);
+    lcd.print("    GRANTED!    ");
+    digitalWrite(RELAY, HIGH);
+     tone(BUZZER, 1000);
+    delay(400);
+    noTone(BUZZER);
+    delay(6600);
+     digitalWrite(RELAY, LOW);
+    lcd.clear();
+    lcd.print("   SCAN CARD   ");
+    lcd.setCursor(0, 1);
+    lcd.print("   TO UNLOCK  ");
+  }
 
-// testar se o período de tempo estabelecido passou
-if (currentMillis - startMillis >= period) {
-// chamar a função de reset
-resetFunc();
-}
-
-// verificar se há uma nova carta presente
-if (!mfrc522.PICC_IsNewCardPresent()) return;
-
-// selecionar a carta
-if (!mfrc522.PICC_ReadCardSerial()) return;
-
-// imprimir o UID da carta no monitor serial
-Serial.print("UID tag :");
-String content = "";
-byte letter;
-for (byte i = 0; i < mfrc522.uid.size; i++) {
-Serial.print(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ");
-Serial.print(mfrc522.uid.uidByte[i], HEX);
-content.concat(String(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " "));
-content.concat(String(mfrc522.uid.uidByte[i], HEX));
-}
-Serial.println();
-Serial.print("Mensagem : ");
-content.toUpperCase();
-if (content.substring(1) == "2A B2 D1 F1") {
-lcd.clear();
-lcd.print(" ACCESS ");
-lcd.setCursor(0, 1);
-lcd.print(" GRANTED ");
-digitalWrite(RELAY, HIGH);
-tone(BUZZER, 1000);
-delay(toneDuration);
-noTone(BUZZER);
-digitalWrite(RELAY, LOW);
-}
-else {
-lcd.clear();
-lcd.print(" ACCESS ");
-lcd.setCursor(0, 1);
-lcd.print(" DENIED ");
-digitalWrite(RELAY, HIGH);
-tone(BUZZER, 1000);
-// atrasar a execução do programa por 500 milissegundos
-delay(500);
-digitalWrite(RELAY, LOW);
-noTone(BUZZER);
-}
-
-// verificar o nível de carga da bateria do dispositivo
-float batteryVoltage = analogRead(A0) * (3.3 / 1023.0) * 2;
-
-// verificar se o dispositivo está sendo carregado
-if (batteryVoltage > 4.2) {
-// acender o LED vermelho
-digitalWrite(LED_VERMELHO, HIGH);
-// apagar o LED verde
-digitalWrite(LED_VERDE, LOW);
-}
-else if (batteryVoltage == 4.2) {
-// acender o LED verde
-digitalWrite(LED_VERDE, HIGH);
-// apagar o LED vermelho
-digitalWrite(LED_VERMELHO, LOW);
-}
-else {
-// apagar os LEDs
-digitalWrite(LED_VERMELHO, LOW);
-digitalWrite(LED_VERDE, LOW);
-}
-
-// imprimir o nível de carga da bateria no monitor serial
-Serial.print("Battery Voltage: ");
-Serial.println(batteryVoltage);
-}
-
+   else   {
+    lcd.clear();
+    lcd.backlight();
+    lcd.print("     ACCESS      ");
+    lcd.setCursor(0, 1);
+    lcd.print("     DENIED     ");
+     tone(BUZZER, 1000);
+    delay(150);
+    noTone(BUZZER);
+    delay(25);
+     tone(BUZZER, 1000);
+    delay(150);
+    noTone(BUZZER);
+    delay(25);
+     tone(BUZZER, 1000);
+    delay(150);
+    noTone(BUZZER);
+    delay(25);
+     tone(BUZZER, 1000);
+    delay(150);
+    noTone(BUZZER);
+    delay(25);
+     tone(BUZZER, 1000);
+    delay(150);
+    noTone(BUZZER);
+    delay(1000);
+     lcd.clear();
+    lcd.print("   SCAN CARD ");
+    lcd.setCursor(0, 1);
+     lcd.print("   TO UNLOCK  ");
+  }
 }
