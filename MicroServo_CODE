@@ -1,0 +1,28 @@
+#include <Servo.h>
+#include <SPI.h>
+
+const int buttonPin1 = 7;  // pino do botão = pino 2
+const int servoPin1 = 9;   // pino do servo = pino 9
+
+Servo myservo1;  // criar uma instancia do servo 1 para conseguir o controlar mais facilmente
+
+void setup() {
+  pinMode(buttonPin1, INPUT);
+  myservo1.attach(servoPin1);  // liga a instancia do servo para o pino 9
+  SPI.begin();                 // Initiate  SPI bus
+}
+
+void loop() {
+  //verificar se o botão está premido
+  if (digitalRead(buttonPin1) == HIGH) {
+    myservo1.write(90);  // rodar servo 90 graus
+    delay(1000);         // esperar 1 segundo
+  }
+  else if(digitalRead(buttonPin1) == LOW) {
+  myservo1.write(0);  //servo retomar ao estado original
+  delay (1000);  //esperar 1 segundo
+  }
+  else {
+    //fazer nada
+  }
+}
