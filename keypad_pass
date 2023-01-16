@@ -1,0 +1,178 @@
+#include <LiquidCrystal.h>
+#include <Keypad.h>
+#include <Servo.h>
+
+#define NO_KEY 0
+
+const byte ROWS = 4; 
+const byte COLS = 4; 
+char keys[ROWS][COLS] = {
+  {'1','2','3', 'A'},
+  {'4','5','6', 'B'},
+  {'7','8','9', 'C'},
+  {'*','0','#', 'D'}
+};
+
+LiquidCrystal lcd(2,3,4,5,6,7);
+int keyPadAnalogPin = 1; 
+int keyDelay = 50;
+unsigned int keyVal1 = 0;
+unsigned int keyVal2 = 0;
+
+const int pinLedA   = 11; // LED for Success
+const int pinLedR   = 12; // LED for Error
+const int pinLedV   = 10; // LED whenever we press
+const int pinSpeaker =  8;  
+const int pinServo  =  9; 
+
+String secret = String("D1234");
+String psswod;
+String message = String();
+String dots = String();
+int count = 0;
+
+int DOOR_OPEN = 0; 
+int DOOR_CLOSE = 90;   
+Servo motor;
+
+
+void setup(){
+  Serial.begin(9600);
+  lcd.begin(16,2);
+  
+  pinMode(pinLedA,  OUTPUT); 
+  pinMode(pinLedR,  OUTPUT); 
+  pinMode(pinLedV,  OUTPUT); 
+  pinMode(pinSpeaker,OUTPUT); 
+              
+  motor.attach(pinServo);
+  psswod = String();
+  startLCD();
+}
+
+void loop(){
+  char key = getKey();
+  
+  if (key != NO_KEY){
+    
+    if (key == '*'){
+        count = 0;
+        psswod = "";
+        dots = "";
+        startLCD();
+    } else if (key == 35){ 
+      if(count == 0){
+        LedNaranja(HIGH);
+        delay(20);
+        LedNaranja(LOW);
+      } else {
+    checkPass();
+      }
+    } else {
+        psswod.concat(key);
+        dots += "*";
+        count += 1;
+        lcd.setCursor(1,1);
+       lcd.print(dots);
+        delay(20); LedVerde(LOW);
+    }
+    
+    Serial.println(key);
+    Serial.println("C: " + psswod);
+  }  
+}
+
+void startLCD(){
+  lcd.clear();
+  lcd.print("Password : ");
+  motor.write(DOOR_CLOSE);
+  LedVerde(LOW);
+  LedAzul(LOW);
+  LedRojo(LOW);
+  digitalWrite(pinSpeaker,LOW);
+  delay(100);
+}
+
+void LedVerde(int std){
+  digitalWrite(pinLedA,LOW);
+  digitalWrite(pinLedR,LOW);
+  digitalWrite(pinLedV,std);
+}
+
+void LedAzul(int std){
+  digitalWrite(pinLedA,std);
+  digitalWrite(pinLedR,LOW);
+  digitalWrite(pinLedV,LOW);
+}
+
+void LedRojo(int std){
+  digitalWrite(pinLedA,LOW);
+  digitalWrite(pinLedR,std);
+  digitalWrite(pinLedV,LOW);
+}
+
+void LedNaranja(int std){
+  digitalWrite(pinLedA,LOW);
+  digitalWrite(pinLedR,std);
+  digitalWrite(pinLedV,std);
+}
+
+unsigned int getKey(){
+  keyVal1 = analogRead(keyPadAnalogPin);
+  delay(keyDelay);
+  keyVal2 = analogRead(keyPadAnalogPin);
+  if(keyVal1 > keyVal2) {
+    keyVal1 = max(keyVal1,keyVal2);
+    return getMatrixValue(keyVal1);
+  } else
+    return NO_KEY;
+}
+
+void checkPass(){
+  int msgDelay = 3000;
+  lcd.clear();
+  
+  if(psswod == secret) {
+    //message = "Access Allowed!!";
+    lcd.setCursor(5,0); lcd.print("Access");
+    lcd.setCursor(3,1); lcd.print("Allowed!");
+    LedAzul(HIGH);
+    motor.write(DOOR_OPEN);
+    tone(pinSpeaker,622.25,200);
+  } else {  
+    //message = "Access Denied!!";
+    lcd.setCursor(5,0); lcd.print("Access");
+    lcd.setCursor(4,1); lcd.print("Denied!");
+    LedRojo(HIGH);
+    tone(pinSpeaker,103.83,400); 
+    msgDelay = 600;
+  }
+  
+  count = 0;
+  psswod = "";
+  dots = "";
+  lcd.display();
+  delay(msgDelay);
+  startLCD();
+}
+char getMatrixValue(int val){
+  switch(val) {
+  case 930 : LedVerde(HIGH); return keys[0][0]; // [1]
+  case 912 : LedVerde(HIGH); return keys[0][1]; // [2]
+  case 894 : LedVerde(HIGH); return keys[0][2]; // [3]
+  case 877 : LedVerde(HIGH); return keys[0][3]; // [A]
+  case 852 : LedVerde(HIGH); return keys[1][0]; // [4]
+  case 837 : LedVerde(HIGH); return keys[1][1]; // [5]
+  case 822 : LedVerde(HIGH); return keys[1][2]; // [6]
+  case 808 : LedVerde(HIGH); return keys[1][3]; // [B]
+  case 787 : LedVerde(HIGH); return keys[2][0]; // [7]
+  case 774 : LedVerde(HIGH); return keys[2][1]; // [8]
+  case 761 : LedVerde(HIGH); return keys[2][2]; // [9]
+  case 749 : LedVerde(HIGH); return keys[2][3]; // [C]
+  case 731 : LedVerde( LOW); return keys[3][0]; // [*]
+  case 719 : LedVerde(HIGH); return keys[3][1]; // [0]
+  case 708 : LedVerde( LOW); return keys[3][2]; // [#]
+  case 698 : LedVerde(HIGH); return keys[3][3]; // [D]
+  default  : LedVerde( LOW); return NO_KEY;
+  }
+}
