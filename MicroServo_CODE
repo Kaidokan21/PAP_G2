@@ -1,7 +1,7 @@
 #include <Servo.h>
 #include <SPI.h>
 
-const int buttonPin1 = 7;  // pino do botão = pino 2
+const int buttonPin1 = 7;  // pino do botão = pino 7
 const int servoPin1 = 9;   // pino do servo = pino 9
 
 Servo myservo1;  // criar uma instancia do servo 1 para conseguir o controlar mais facilmente
